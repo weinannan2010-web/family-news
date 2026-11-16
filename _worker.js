@@ -43,6 +43,9 @@ export default {
       return json({ error: "method" }, 405);
     }
 
+    const PUBLIC = ["/icon.svg", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png", "/favicon.ico", "/manifest.webmanifest"];
+    if (PUBLIC.includes(url.pathname)) return env.ASSETS.fetch(req);
+
     if (k && VIEW && k === VIEW) {
       url.searchParams.delete("k");
       return new Response(null, { status: 302, headers: {
