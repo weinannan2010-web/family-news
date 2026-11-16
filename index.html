@@ -48,6 +48,9 @@ summary{cursor:pointer;font-weight:600}summary small{font-weight:400;color:var(-
 summary::marker{color:var(--gold2)}
 details .inner{padding:10px 0 2px;font-size:15px}
 footer{margin-top:24px;color:var(--mute);font-size:12px;text-align:center;line-height:1.8}
+.idea-zh{font:500 17px/1.75 "Songti SC","Noto Serif SC",serif;margin:0 0 8px}
+.idea-en{margin:0 0 10px;color:var(--mute);font-style:italic}
+.idea-src{color:var(--mute);font-size:12.5px}.idea-src a{color:var(--gold);text-underline-offset:3px}
 .empty{color:var(--mute)}
 </style>
 </head>
@@ -55,7 +58,7 @@ footer{margin-top:24px;color:var(--mute);font-size:12px;text-align:center;line-h
 <div class="top"><div class="in"><img src="/icon.svg" alt=""><div><h1>家里的今天</h1><p id="upd">正在读取…</p></div></div></div>
 <main>
 <div id="app"></div>
-<footer>八字黄历只做参考，具体的事看实际情况。新闻只列事实和来源，不是投资建议。</footer>
+<footer>今日提示是按八字黄历规则做的判断，没有经过验证，只做参考。<br>新闻和数字都打开原文核对过；查不到的会写"没查到"。不是投资建议。</footer>
 </main>
 <script>
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -67,7 +70,8 @@ function tipHtml(d){
   let h=`<div class="day"><span>${esc(md(d.date))} ${esc(d.weekday||"")}</span><span class="chip ${vcls(d.verdict||"")}">${esc(d.verdict||"平常")}</span></div>`;
   if(d.ganzhi)h+=`<div class="gz">${esc(d.ganzhi)}</div>`;
   if(d.summary)h+=`<p class="sum">${esc(d.summary)}</p>`;
-  for(const p of d.people||[])h+=`<div class="who"><b class="${WHO[p.who]||"c-def"}">${esc(p.who)}</b><div>${esc(p.text)}</div></div>`;
+  const ORD=["粉粉","紫紫","蓝蓝"];const ppl=(d.people||[]).slice().sort((x,y)=>{const i=ORD.indexOf(x.who),j=ORD.indexOf(y.who);return (i<0?9:i)-(j<0?9:j)});
+  for(const p of ppl)h+=`<div class="who"><b class="${WHO[p.who]||"c-def"}">${esc(p.who)}</b><div>${esc(p.text)}</div></div>`;
   if(d.action)h+=`<div class="act"><span>今日一件事</span>${esc(d.action)}</div>`;
   if(d.remind)h+=`<div class="rem"><span>提醒</span>${esc(d.remind)}</div>`;
   return h;
@@ -76,9 +80,16 @@ function newsHtml(d){
   if(!(d.news||[]).length)return "";
   return `<ul>`+d.news.map(n=>`<li><a href="${esc(safeUrl(n.u))}" target="_blank" rel="noopener">${esc(n.t)}</a><small>${esc([n.about,n.src,n.date].filter(Boolean).join(" · "))}</small>${n.zh?`<div>${esc(n.zh)}</div>`:""}</li>`).join("")+`</ul>`;
 }
+function ideaHtml(d){
+  const i=d.idea; if(!i||!i.zh)return "";
+  let h=`<p class="idea-zh">${esc(i.zh)}</p>`;
+  if(i.en)h+=`<p class="idea-en">${esc(i.en)}</p>`;
+  h+=`<small class="idea-src">转述，不是原句 · ${i.u?`<a href="${esc(safeUrl(i.u))}" target="_blank" rel="noopener">${esc(i.src||"出处")}</a>`:esc(i.src||"")}${i.note?" · "+esc(i.note):""}</small>`;
+  return h;
+}
 function weekHtml(w){
   const blk=(t,a)=>(a&&a.length)?`<h3>${t}</h3><ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
-  return blk("持仓这一周",w.holdings)+blk("书里的提醒",w.books)+blk("上周对照",w.review)+blk("下周展望",w.outlook);
+  return blk("市场这一周",w.market||w.holdings)+blk("上周对照",w.review)+blk("下周展望",w.outlook);
 }
 function render(data){
   const days=(data.days||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
@@ -91,6 +102,8 @@ function render(data){
     h+=`<section><h2>今日提示</h2>${tipHtml(t)}</section>`;
     const n=newsHtml(t);
     if(n)h+=`<section class="news"><h2>今天可以读</h2>${n}</section>`;
+    const id=ideaHtml(t);
+    if(id)h+=`<section class="idea"><h2>书里的一个观点</h2>${id}</section>`;
   }
   if(weekly.length)h+=`<section class="wk"><h2>本周小结 · ${esc(md(weekly[0].date))}</h2>${weekHtml(weekly[0])}</section>`;
   const old=days.slice(1,31);
