@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>家里的今天</title>
+<style>
+:root{--bg:#f6f1e7;--card:#fffdf8;--ink:#2b2622;--mute:#7a7067;--line:#e4dccd;--accent:#a4452c;--good:#2f6b4f;--care:#9a5a12;--plain:#5b6470}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1a17;--card:#26231f;--ink:#ece5d8;--mute:#a39a8d;--line:#3a352e;--accent:#e08a6c;--good:#7fc4a0;--care:#e0b062;--plain:#aab3bf}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 -apple-system,"PingFang SC","Noto Sans SC","Microsoft YaHei",sans-serif}
+main{max-width:620px;margin:0 auto;padding:28px 18px 56px}
+header h1{font:600 26px/1.2 "Songti SC","Noto Serif SC",serif;margin:0;letter-spacing:.04em}
+header p{margin:6px 0 0;color:var(--mute);font-size:14px}
+section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;margin-top:18px}
+h2{font-size:13px;font-weight:600;letter-spacing:.14em;color:var(--mute);margin:0 0 12px}
+.day{font:600 19px/1.4 "Songti SC","Noto Serif SC",serif}
+.chip{display:inline-block;font-size:13px;font-weight:600;padding:2px 10px;border-radius:99px;border:1.5px solid currentColor;margin-left:8px;vertical-align:2px}
+.v-good{color:var(--good)}.v-care{color:var(--care)}.v-plain{color:var(--plain)}
+.sum{margin:8px 0 14px}
+.who{display:grid;grid-template-columns:4.2em 1fr;gap:4px 10px;padding:9px 0;border-top:1px solid var(--line)}
+.who b{font-weight:600;color:var(--accent)}
+.act{margin-top:12px;padding:10px 12px;border-left:3px solid var(--accent);background:color-mix(in srgb,var(--accent) 7%,transparent);border-radius:0 8px 8px 0}
+.act span,.rem span{font-size:13px;color:var(--mute);display:block}
+.rem{margin-top:10px;font-size:15px}
+.news a{color:var(--ink);font-weight:600;text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px}
+.news li,.wk li{margin:0 0 12px}
+.news small{display:block;color:var(--mute);font-size:13px}
+ul{margin:0;padding-left:1.15em}.news ul{list-style:none;padding:0}
+.wk h3{font-size:15px;margin:14px 0 6px}.wk h3:first-of-type{margin-top:0}
+details{border-top:1px solid var(--line);padding:10px 0}details:first-of-type{border-top:0}
+summary{cursor:pointer;font-weight:600}summary small{font-weight:400;color:var(--mute);margin-left:6px}
+details .inner{padding:8px 0 2px;font-size:15px}
+footer{margin-top:22px;color:var(--mute);font-size:12.5px;text-align:center}
+.empty{color:var(--mute)}
+</style>
+</head>
+<body>
+<main>
+<header><h1>家里的今天</h1><p id="upd">正在读取…</p></header>
+<div id="app"></div>
+<footer>八字黄历只做参考，具体的事看实际情况。新闻只列事实和来源，不是投资建议。</footer>
+</main>
+<script>
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const safeUrl=u=>/^https?:\/\//i.test(u||"")?u:"#";
+const vcls=v=>/有利/.test(v)?"v-good":/留意/.test(v)?"v-care":"v-plain";
+const md=d=>{const p=(d||"").split("-");return p.length===3?(+p[1])+"月"+(+p[2])+"日":d};
+function tipHtml(d){
+  let h=`<div class="day">${esc(md(d.date))} ${esc(d.weekday||"")}<span class="chip ${vcls(d.verdict||"")}">${esc(d.verdict||"平常")}</span></div>`;
+  if(d.ganzhi)h+=`<div style="color:var(--mute);font-size:14px">${esc(d.ganzhi)}</div>`;
+  if(d.summary)h+=`<p class="sum">${esc(d.summary)}</p>`;
+  for(const p of d.people||[])h+=`<div class="who"><b>${esc(p.who)}</b><div>${esc(p.text)}</div></div>`;
+  if(d.action)h+=`<div class="act"><span>今日一件事</span>${esc(d.action)}</div>`;
+  if(d.remind)h+=`<div class="rem"><span>提醒</span>${esc(d.remind)}</div>`;
+  return h;
+}
+function newsHtml(d){
+  if(!(d.news||[]).length)return "";
+  return `<ul>`+d.news.map(n=>`<li><a href="${esc(safeUrl(n.u))}" target="_blank" rel="noopener">${esc(n.t)}</a><small>${esc([n.about,n.src,n.date].filter(Boolean).join(" · "))}</small>${n.zh?`<div>${esc(n.zh)}</div>`:""}</li>`).join("")+`</ul>`;
+}
+function weekHtml(w){
+  const blk=(t,a)=>(a&&a.length)?`<h3>${t}</h3><ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
+  return blk("持仓这一周",w.holdings)+blk("书里的提醒",w.books)+blk("上周对照",w.review)+blk("下周展望",w.outlook);
+}
+function render(data){
+  const days=(data.days||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  const weekly=(data.weekly||[]).slice().sort((a,b)=>a.date<b.date?1:-1);
+  document.getElementById("upd").textContent=data.updated?("更新于 "+data.updated):"还没有内容";
+  let h="";
+  if(!days.length){h+=`<section><p class="empty">还没有内容。每天早上会自动更新。</p></section>`}
+  else{
+    const t=days[0];
+    h+=`<section><h2>今日提示</h2>${tipHtml(t)}</section>`;
+    const n=newsHtml(t);
+    if(n)h+=`<section class="news"><h2>今天可以读</h2>${n}</section>`;
+  }
+  if(weekly.length)h+=`<section class="wk"><h2>本周小结 · ${esc(md(weekly[0].date))}</h2>${weekHtml(weekly[0])}</section>`;
+  const old=days.slice(1,31);
+  if(old.length||weekly.length>1){
+    h+=`<section><h2>往期</h2>`;
+    for(const d of old)h+=`<details><summary>${esc(md(d.date))} ${esc(d.weekday||"")}<small>${esc(d.verdict||"")}</small></summary><div class="inner">${tipHtml(d)}<div class="news" style="margin-top:12px">${newsHtml(d)}</div></div></details>`;
+    for(const w of weekly.slice(1,9))h+=`<details><summary>周小结 ${esc(md(w.date))}</summary><div class="inner wk">${weekHtml(w)}</div></details>`;
+    h+=`</section>`;
+  }
+  document.getElementById("app").innerHTML=h;
+}
+fetch("/api/data",{credentials:"same-origin"}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).then(render)
+ .catch(e=>{document.getElementById("upd").textContent="读取失败（"+e.message+"）";});
+</script>
+</body>
+</html>
