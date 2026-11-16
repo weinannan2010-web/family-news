@@ -51,6 +51,13 @@ footer{margin-top:24px;color:var(--mute);font-size:12px;text-align:center;line-h
 .idea-zh{font:500 17px/1.75 "Songti SC","Noto Serif SC",serif;margin:0 0 8px}
 .idea-en{margin:0 0 10px;color:var(--mute);font-style:italic}
 .idea-src{color:var(--mute);font-size:12.5px}.idea-src a{color:var(--gold);text-underline-offset:3px}
+.famd{border:0;padding:0}.famd summary{display:flex;justify-content:space-between;gap:12px;align-items:baseline;font-weight:500}
+.famd summary small{flex:none;color:var(--gold);font-weight:400;margin:0}
+.famd[open] summary{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+.fam{list-style:none;margin:0;padding:0}
+.fam li{display:grid;grid-template-columns:1fr;gap:0;padding:10px 0;border-top:1px solid var(--line)}.fam li:first-child{border-top:0;padding-top:0}
+.fam-d{color:var(--gold);font-size:13px;letter-spacing:.04em}
+.fam b{font-weight:600}
 .empty{color:var(--mute)}
 </style>
 </head>
@@ -87,6 +94,21 @@ function ideaHtml(d){
   h+=`<small class="idea-src">转述，不是原句 · ${i.u?`<a href="${esc(safeUrl(i.u))}" target="_blank" rel="noopener">${esc(i.src||"出处")}</a>`:esc(i.src||"")}${i.note?" · "+esc(i.note):""}</small>`;
   return h;
 }
+function familyHtml(data){
+  const now=new Date(Date.now()+8*3600e3).toISOString().slice(0,10);
+  const WD="日一二三四五六";
+  const items=(data.family||[]).filter(f=>!f.date||(f.end||f.date)>=now).sort((x,y)=>(x.date||"9")<(y.date||"9")?-1:1);
+  if(!items.length)return "";
+  const today=items.filter(f=>f.date&&f.date<=now&&(f.end||f.date)>=now);
+  const lead=today.length?("今天："+today.map(f=>(f.who?f.who+" ":"")+f.text.split("：")[0]).join("、")):("下一件："+(items[0].who?items[0].who+" ":"")+items[0].text);
+  let open=false;try{open=localStorage.getItem("fam_open")==="1"}catch(e){}
+  return `<details class="famd"${open?" open":""} ontoggle="try{localStorage.setItem('fam_open',this.open?'1':'0')}catch(e){}"><summary><span class="fam-lead">${esc(lead)}</span><small>共 ${items.length} 件 ▾</small></summary><ul class="fam">`+items.map(f=>{
+    let when="常驻";
+    if(f.date){const d=new Date(f.date+"T00:00:00Z");const wd=x=>"周"+WD[new Date(x+"T00:00:00Z").getUTCDay()];
+      when=(f.end&&f.end!==f.date)?(md(f.date)+"–"+md(f.end).replace(/^\d+月/,m=>m===md(f.date).match(/^\d+月/)[0]?"":m)+" "+wd(f.date)+"到"+wd(f.end)):(md(f.date)+" "+wd(f.date));
+      if(f.date<=now&&(f.end||f.date)>=now)when+=" · 今天";}
+    return `<li><span class="fam-d">${esc(when)}</span><span>${f.who?`<b class="${WHO[f.who]||"c-def"}">${esc(f.who)}</b> `:""}${esc(f.text)}</span></li>`}).join("")+`</ul></details>`;
+}
 function weekHtml(w){
   const blk=(t,a)=>(a&&a.length)?`<h3>${t}</h3><ul>${a.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:"";
   return blk("市场这一周",w.market||w.holdings)+blk("上周对照",w.review)+blk("下周展望",w.outlook);
@@ -100,6 +122,8 @@ function render(data){
   else{
     const t=days[0];
     h+=`<section><h2>今日提示</h2>${tipHtml(t)}</section>`;
+    const fm=familyHtml(data);
+    if(fm)h+=`<section><h2>家里的事</h2>${fm}</section>`;
     const n=newsHtml(t);
     if(n)h+=`<section class="news"><h2>今天可以读</h2>${n}</section>`;
     const id=ideaHtml(t);
